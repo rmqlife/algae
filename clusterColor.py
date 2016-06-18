@@ -8,6 +8,7 @@ def centroid_histogram(clt):
 	numLabels = np.arange(0, len(np.unique(clt.labels_)) +1)
 	(hist, _) = np.histogram(clt.labels_, bins = numLabels)
 	
+	# normalize the histogram
 	hist = hist.astype("float")
 	hist /= hist.sum()
 	return hist
@@ -23,36 +24,59 @@ def plot_colors(hist, centroids):
 		startX = endX
 	return bar
 
-def is_black(s): 
-	return np.array_equal(s, np.array([0,0,0]))			
 
-
-def clusterColor(im):
+def separate_colors(im, centroids):
+	pixels = im.reshape((im.shape[0] * im.shape[1], 3))
+ 	# labels
+ 	labels = []
+	from scipy.spatial import distance
+	for p in pixels:
+		if list(p)==[0,0,0]:
+			labels.append(-1);
+		else:
+			dist = []
+			for color in centroids:
+				dist.append( distance.euclidean(p,color))
+			labels.append(np.argmin(np.array(dist)))
+	labels = np.array(labels).reshape((im.shape[0], im.shape[1]))
+	# np.savetxt('labels',labels, fmt = '%5d')
+	for l in range(0, len(centroids)):
+		lim = np.not_equal(labels,l)
+		lim = lim.astype("uint8")
+		masked = cv2.bitwise_and(im, im, mask=lim)
+		# lim = 255*lim.astype("uint8")
+		# np.savetxt('labels',lim, fmt = '%5d')
+		cv2.imwrite(str(l)+".jpg",masked)
 	
+
+				
+def cluster_colors(im):
 	for i in xrange(2):
 		im = cv2.pyrDown(im)
-		cv2.imshow('im', im)
 
 	# im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
 	# reshape im to a vector of pixels
-	im = im.reshape((im.shape[0] * im.shape[1], 3))
+	im_ = im.reshape((im.shape[0] * im.shape[1], 3))
 	pixels = []
-	for p in im:
+	for p in im_:
 		if list(p)!=[0,0,0]:
 			pixels.append(p)
-	im = np.array(pixels)	
+	pixels = np.array(pixels)	
 
 	# cluster the pixel intensities, n_clusters
-	clt = KMeans(n_clusters = 10)
-	clt.fit(im)
+	clt = KMeans(n_clusters = 15)
+	clt.fit(pixels)
 
 	# build histogram
 	hist = centroid_histogram(clt)
 	bar = plot_colors(hist, clt.cluster_centers_)
+	cv2.imwrite('bar.jpg', bar)
+	cv2.imwrite('im.jpg', im)
 
-	cv2.imshow('bar', bar)
-	cv2.waitKey(0)
+	# separate image by labels
+	separate_colors(im, clt.cluster_centers_)
+
 
 if __name__=="__main__":
 	im = cv2.imread('data/1.jpg')
-	clusterColor(im)
+	cluster_colors(im)
