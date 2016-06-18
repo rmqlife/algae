@@ -1,6 +1,6 @@
 #!/bin/bash
-num=1
-cd data
+num=0
+cd $1
 for file in *.jpg; do
 	mv "$file" "$(printf "%u" $num).jpg"
 	let num=$num+1
