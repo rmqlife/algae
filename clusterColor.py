@@ -1,6 +1,8 @@
 #!/bin/python
 # ref
 # http://www.pyimagesearch.com/2014/05/26/opencv-python-k-means-color-clustering/
+# kd-tree for nearest vectors searching 
+# http://stackoverflow.com/questions/32446703/find-closest-vector-from-a-list-of-vectors-python
 from sklearn.cluster import KMeans
 import cv2
 import numpy as np
@@ -24,36 +26,32 @@ def plot_colors(hist, centroids):
 		startX = endX
 	return bar
 
-
 def separate_colors(im, centroids):
+ 	# using spatial kd-tree for searching
+	from scipy import spatial
+	# black as 0th color
+	centroids = np.append([[0,0,0]], centroids, axis=0)
+	tree = spatial.KDTree(centroids)
+	# test data: pixels
 	pixels = im.reshape((im.shape[0] * im.shape[1], 3))
- 	# labels
+	# labels
  	labels = []
-	from scipy.spatial import distance
 	for p in pixels:
-		if list(p)==[0,0,0]:
-			labels.append(-1);
-		else:
-			dist = []
-			for color in centroids:
-				dist.append( distance.euclidean(p,color))
-			labels.append(np.argmin(np.array(dist)))
+		dist, idx = tree.query(p)
+		labels.append(idx)
 	labels = np.array(labels).reshape((im.shape[0], im.shape[1]))
+	# np.unique(labels)
 	# np.savetxt('labels',labels, fmt = '%5d')
 	for l in range(0, len(centroids)):
 		lim = np.not_equal(labels,l)
 		lim = lim.astype("uint8")
-		masked = cv2.bitwise_and(im, im, mask=lim)
 		# lim = 255*lim.astype("uint8")
-		# np.savetxt('labels',lim, fmt = '%5d')
+		masked = cv2.bitwise_and(im, im, mask=lim)
 		cv2.imwrite(str(l)+".jpg",masked)
-	
-
-				
+		
 def cluster_colors(im):
-	for i in xrange(2):
+	for i in xrange(6):
 		im = cv2.pyrDown(im)
-
 	# im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
 	# reshape im to a vector of pixels
 	im_ = im.reshape((im.shape[0] * im.shape[1], 3))
